@@ -1,0 +1,12 @@
+# main
+- name: Prerequisite
+  # Use the public IP if the VM is already created
+  hosts: "{{target}}"
+  strategy: linear
+  user: root
+  become: true
+  gather_facts: false
+
+
+  roles:
+   - postgres

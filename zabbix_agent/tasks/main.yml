@@ -1,0 +1,81 @@
+---
+# tasks file for zabbix_agent
+- name: Install Zabbix Repository
+  remote_user: root
+  become: true
+  shell: |
+    rpm -Uvh https://repo.zabbix.com/zabbix/6.4/rhel/8/x86_64/zabbix-release-6.4-1.el8.noarch.rpm
+    dnf clean all
+  any_errors_fatal: true
+
+- name: Switch to PHP 7.4
+  remote_user: root
+  become: true
+  shell: |
+    dnf -y module switch-to php:7.4
+  any_errors_fatal: true
+
+- name: Install Zabbix Agent
+  dnf:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - zabbix-selinux-policy
+    - zabbix-agent
+
+- name: Stop_zabbix_agent
+  service:
+    name: zabbix-agent
+    state: stopped
+
+- name: Configure Zabbix Agent Conf file
+  template:
+    src: zabbix_agent.template
+    dest: /etc/zabbix/zabbix_agent.conf
+
+- name: Replace server  and server active IP in zabbix_agent.conf
+  remote_user: root
+  become: true
+  shell: |
+    # my_ip=$(ip addr show | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+    export ZABBIX_IP="192.168.225.37"
+    sed -i "s/\$SERVER_IP/$ZABBIX_IP/g" /etc/zabbix/zabbix_agent.conf
+    sed -i "s/\$SERVER_ACTIVE/$ZABBIX_IP/g" /etc/zabbix/zabbix_agent.conf
+  any_errors_fatal: true
+
+- name: Replace server IP in zabbix_agent.conf
+  lineinfile:
+    path: /etc/zabbix/zabbix_agent.conf
+    regexp: "^Server="
+    line: "Server=192.168.225.37"
+    state: present
+
+- name: Replace server active IP in zabbix_agent.conf
+  lineinfile:
+    path: /etc/zabbix/zabbix_agent.conf
+    regexp: "^ServerActive="
+    line: "ServerActive=192.168.225.37"
+    state: present
+
+- name: restart_zabbix_agent
+  service:
+    name: zabbix-agent
+    state: restarted
+
+- name: permit traffic in default zone on port 10050 and 10051/tcp
+  ansible.posix.firewalld:
+    port: 10050/tcp
+    permanent: true
+    state: enabled
+
+- name: permit traffic in default zone on port 10050 and 10051/tcp
+  ansible.posix.firewalld:
+    port: 10051/tcp
+    permanent: true
+    state: enabled
+
+- name: permit traffic in default zone for https service
+  ansible.posix.firewalld:
+    service: http
+    permanent: true
+    state: enabled

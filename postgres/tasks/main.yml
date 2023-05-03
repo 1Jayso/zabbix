@@ -1,0 +1,49 @@
+- name: Add PostgreSQL Repo and Install PostgreSQL
+  remote_user: root
+  become: true
+  shell: |
+    dnf clean
+    dnf -y update
+    sudo rpm --import https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+- name: Update Repo List
+  remote_user: root
+  become: true
+  shell: |
+    dnf -y update
+
+- name: Disbale built in PostgreSQL
+  remote_user: root
+  become: true
+  shell: |
+    dnf -qy module disable postgresql
+
+- name: Install PostgreSQL 15
+  remote_user: root
+  become: true
+  dnf:
+    name:
+      - postgresql15-server
+      - postgresql15-contrib
+    state: present
+
+- name: Disbale built in PostgreSQL
+  remote_user: root
+  become: true
+  shell: |
+    /usr/pgsql-15/bin/postgresql-15-setup initdb
+  args:
+    creates: "/var/lib/pgsql/15/data/PG_VERSION"
+
+- name: Enable PostgreSQL
+  systemd:
+    name: postgresql-15.service
+    enabled: yes
+
+- name: Start PostgreSQL
+  systemd:
+    name: postgresql-15.service
+    state: started
+
+
